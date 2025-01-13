@@ -14,9 +14,14 @@ namespace library_management_api.Controllers
         public BooksController(LibraryDBContext context) => dbContext = context;
 
         [HttpGet]
-        public IActionResult GetBooks()
+        public IActionResult GetBooks(string? name = null)
         {
-            return Ok(dbContext.Books.ToList());
+            var query = dbContext.Books.AsQueryable();
+            if (!string.IsNullOrEmpty(name))
+            {
+                query = query.Where(b => b.Name.Contains(name));
+            }
+            return Ok(query.ToList());
         }
 
         [HttpGet("{id}")]
