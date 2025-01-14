@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace library_management_api.Models
 {
@@ -19,5 +20,11 @@ namespace library_management_api.Models
         public DateTime CreatedDate { get; set; }
 
         public string? Publisher { get; set; }
+
+        [Required]
+        public int UserId { get; set; }
+
+        [ForeignKey(nameof(UserId))]
+        public required User User { get; set; }
     }
 }

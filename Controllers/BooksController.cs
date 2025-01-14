@@ -1,7 +1,10 @@
 ﻿using library_management_api.Data;
 using library_management_api.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace library_management_api.Controllers
 {
@@ -31,8 +34,31 @@ namespace library_management_api.Controllers
         }
 
         [HttpPost]
-        public IActionResult AddBook(Book book)
+        [Authorize]
+        public async Task<IActionResult> AddBook(BookDto bookDto)
         {
+            var userId = User.FindFirstValue(ClaimTypes.Sid);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized(new { Message = "User ID not found in token" });
+            }
+            var user = await dbContext.Users.FindAsync(int.Parse(userId));
+            if (user == null)
+            {
+                return Unauthorized(new { Message = "User not found" });
+            }
+            var book = new Book
+            {
+                Name = bookDto.Name,
+                Author = bookDto.Author,
+                Description = bookDto.Description,
+                ImageURl = bookDto.ImageURl,
+                CreatedDate = bookDto.CreatedDate,
+                Publisher = bookDto.Publisher,
+                UserId = int.Parse(userId),
+                User = user
+            };
+
             dbContext.Books.Add(book);
             dbContext.SaveChanges();
             return Created();
