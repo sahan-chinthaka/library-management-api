@@ -27,6 +27,24 @@ namespace library_management_api.Controllers
             return Ok(query.ToList());
         }
 
+        [HttpGet("mybooks")]
+        [Authorize]
+        public async Task<IActionResult> GetUserBooks()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.Sid);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token");
+            }
+
+            var userBooks = await dbContext.Books
+                .Where(b => b.UserId == int.Parse(userId))
+                .ToListAsync();
+
+            return Ok(userBooks);
+        }
+
+
         [HttpGet("{id}")]
         public IActionResult GetBook(int id)
         {
@@ -40,12 +58,12 @@ namespace library_management_api.Controllers
             var userId = User.FindFirstValue(ClaimTypes.Sid);
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new { Message = "User ID not found in token" });
+                return Unauthorized("User ID not found in token");
             }
             var user = await dbContext.Users.FindAsync(int.Parse(userId));
             if (user == null)
             {
-                return Unauthorized(new { Message = "User not found" });
+                return Unauthorized("User not found");
             }
             var book = new Book
             {
@@ -65,10 +83,22 @@ namespace library_management_api.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateBook(int id, Book book)
+        [Authorize]
+        public async Task<IActionResult> UpdateBook(int id, Book book)
         {
-            var existBook = dbContext.Books.Find(id);
+            var userId = User.FindFirstValue(ClaimTypes.Sid);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token");
+            }
+
+            var existBook = await dbContext.Books.FindAsync(id);
             if (existBook == null) return NotFound($"No book with id: {id}");
+
+            if (existBook.UserId != int.Parse(userId))
+            {
+                return Forbid("You are not authorized to update this book.");
+            }
 
             existBook.Author = book.Author;
             existBook.Publisher = book.Publisher;
@@ -76,19 +106,34 @@ namespace library_management_api.Controllers
             existBook.Description = book.Description;
             existBook.Name = book.Name;
 
-            dbContext.SaveChanges();
+            await dbContext.SaveChangesAsync();
 
             return Ok($"Update book with id: {id}");
         }
 
         [HttpDelete("{id}")]
-        public IActionResult DeleteBook(int id)
+        [Authorize]
+        public async Task<IActionResult> DeleteBook(int id)
         {
-            var book = dbContext.Books.Find(id);
+            var userId = User.FindFirstValue(ClaimTypes.Sid);
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("User ID not found in token");
+            }
+
+            var book = await dbContext.Books.FindAsync(id);
             if (book == null) return NotFound($"No book with id: {id}");
 
+            if (book.UserId != int.Parse(userId))
+            {
+                return Forbid("You are not authorized to delete this book.");
+            }
+
             dbContext.Books.Remove(book);
+            await dbContext.SaveChangesAsync();
+
             return Ok($"Delete book with id: {id}");
         }
+
     }
 }
