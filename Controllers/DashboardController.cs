@@ -13,10 +13,12 @@ namespace library_management_api.Controllers
         public DashboardController(LibraryDBContext context) => dbContext = context;
 
         [HttpGet]
-        public IActionResult GetBookCount()
+        public IActionResult GetCounts()
         {
             var bookCount = dbContext.Books.Count();
-            return Ok(bookCount);
+            var userCount = dbContext.Users.Count();
+            return Ok(new { BookCount = bookCount, UserCount = userCount });
         }
+
     }
 }

@@ -27,29 +27,47 @@ namespace library_management_api.Controllers
             return Ok(query.ToList());
         }
 
-        [HttpGet("mybooks")]
-        [Authorize]
-        public async Task<IActionResult> GetUserBooks()
+        [HttpGet("recent")]
+        public async Task<IActionResult> GetRecentBooks()
         {
-            var userId = User.FindFirstValue(ClaimTypes.Sid);
-            if (string.IsNullOrEmpty(userId))
-            {
-                return Unauthorized("User ID not found in token");
-            }
-
-            var userBooks = await dbContext.Books
-                .Where(b => b.UserId == int.Parse(userId))
+            var recentBooks = await dbContext.Books
+                .OrderByDescending(b => b.CreatedDate)
+                .Take(3)
                 .ToListAsync();
 
-            return Ok(userBooks);
+            return Ok(recentBooks);
         }
 
 
         [HttpGet("{id}")]
-        public IActionResult GetBook(int id)
+        public async Task<IActionResult> GetBook(int id)
         {
-            return Ok(dbContext.Books.Find(id));
+            var book = await dbContext.Books
+                .Include(b => b.User)
+                .FirstOrDefaultAsync(b => b.Id == id);
+
+            if (book == null) return NotFound($"No book with id: {id}");
+
+            var bookDto = new
+            {
+                book.Id,
+                book.Name,
+                book.Author,
+                book.Description,
+                book.ImageURl,
+                book.CreatedDate,
+                book.Publisher,
+                User = new UserDto
+                {
+                    Id = book.User.Id,
+                    Username = book.User.Username
+                }
+            };
+
+            return Ok(bookDto);
         }
+
+
 
         [HttpPost]
         [Authorize]
@@ -84,7 +102,7 @@ namespace library_management_api.Controllers
 
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> UpdateBook(int id, Book book)
+        public async Task<IActionResult> UpdateBook(int id, BookDto book)
         {
             var userId = User.FindFirstValue(ClaimTypes.Sid);
             if (string.IsNullOrEmpty(userId))
@@ -102,7 +120,6 @@ namespace library_management_api.Controllers
 
             existBook.Author = book.Author;
             existBook.Publisher = book.Publisher;
-            existBook.CreatedDate = book.CreatedDate;
             existBook.Description = book.Description;
             existBook.Name = book.Name;
 
